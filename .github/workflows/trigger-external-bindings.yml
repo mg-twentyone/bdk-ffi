@@ -1,4 +1,9 @@
 name: Trigger External Bindings Workflow
+
+# Automatically triggers tests in external repositories (like bdk-jvm) when bdk-ffi changes.
+# Runs when bdk-ffi code is pushed to master branch to ensure downstream bindings get notified if their tests break.
+# Uses repository dispatch API to trigger workflows in dependent repositories.
+
 on:
   workflow_dispatch:
   push:
@@ -11,12 +16,12 @@ on:
 permissions: {}
 
 jobs:
-  build:
+  trigger:
+    name: "Trigger all remote test workflows"
     runs-on: ubuntu-24.04
     steps:    
-      # Trigger trigger-bdk-python-test workflow in bdk-python repository
-      - name: Trigger tests in bdk-python repository
-        if: ${{ github.ref_name == 'master' || github.ref_name == 'ci/python-workflow'}}
+      # Trigger trigger-bdk-jvm-test workflow in bdk-jvm repository
+      - name: "Trigger tests in bdk-jvm repository"
         env:
           BDK_PYTHON_ACCESS_TOKEN: ${{ secrets.BDK_PYTHON_ACCESS_TOKEN }}
         run: |

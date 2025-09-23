@@ -58,9 +58,79 @@ impl Wallet {
                 .network(network)
                 .lookahead(lookahead)
                 .create_wallet(deref)
-                .map_err(|e| CreateWithPersistError::Persist {
-                    error_message: e.to_string(),
-                })?;
+                .map_err(CreateWithPersistError::from)?;
+
+        Ok(Wallet {
+            inner_mutex: Mutex::new(wallet),
+        })
+    }
+
+    /// Build a new single descriptor `Wallet`.
+    ///
+    /// If you have previously created a wallet, use `Wallet::load` instead.
+    ///
+    /// # Note
+    ///
+    /// Only use this method when creating a wallet designed to be used with a single
+    /// descriptor and keychain. Otherwise the recommended way to construct a new wallet is
+    /// by using `Wallet::new`. It's worth noting that not all features are available
+    /// with single descriptor wallets, for example setting a `change_policy` on `TxBuilder`
+    /// and related methods such as `do_not_spend_change`. This is because all payments are
+    /// received on the external keychain (including change), and without a change keychain
+    /// BDK lacks enough information to distinguish between change and outside payments.
+    ///
+    /// Additionally because this wallet has no internal (change) keychain, all methods that
+    /// require a `KeychainKind` as input, e.g. `reveal_next_address` should only be called
+    /// using the `External` variant. In most cases passing `Internal` is treated as the
+    /// equivalent of `External` but this behavior must not be relied on.
+    #[uniffi::constructor(default(lookahead = 25))]
+    pub fn create_single(
+        descriptor: Arc<Descriptor>,
+        network: Network,
+        persister: Arc<Persister>,
+        lookahead: u32,
+    ) -> Result<Self, CreateWithPersistError> {
+        let descriptor = descriptor.to_string_with_secret();
+        let mut persist_lock = persister.inner.lock().unwrap();
+        let deref = persist_lock.deref_mut();
+
+        let wallet: PersistedWallet<PersistenceType> = BdkWallet::create_single(descriptor)
+            .network(network)
+            .lookahead(lookahead)
+            .create_wallet(deref)
+            .map_err(CreateWithPersistError::from)?;
+
+        Ok(Wallet {
+            inner_mutex: Mutex::new(wallet),
+        })
+    }
+
+    /// Build a new `Wallet` from a two-path descriptor.
+    ///
+    /// This function parses a multipath descriptor with exactly 2 paths and creates a wallet using the existing receive and change wallet creation logic.
+    ///
+    /// Multipath descriptors follow [BIP-389](https://github.com/bitcoin/bips/blob/master/bip-0389.mediawiki) and allow defining both receive and change derivation paths in a single descriptor using the <0;1> syntax.
+    ///
+    /// If you have previously created a wallet, use load instead.
+    ///
+    /// Returns an error if the descriptor is invalid or not a 2-path multipath descriptor.
+    #[uniffi::constructor(default(lookahead = 25))]
+    pub fn create_from_two_path_descriptor(
+        two_path_descriptor: Arc<Descriptor>,
+        network: Network,
+        persister: Arc<Persister>,
+        lookahead: u32,
+    ) -> Result<Self, CreateWithPersistError> {
+        let descriptor = two_path_descriptor.to_string_with_secret();
+        let mut persist_lock = persister.inner.lock().unwrap();
+        let deref = persist_lock.deref_mut();
+
+        let wallet: PersistedWallet<PersistenceType> =
+            BdkWallet::create_from_two_path_descriptor(descriptor)
+                .network(network)
+                .lookahead(lookahead)
+                .create_wallet(deref)
+                .map_err(CreateWithPersistError::from)?;
 
         Ok(Wallet {
             inner_mutex: Mutex::new(wallet),
@@ -68,8 +138,8 @@ impl Wallet {
     }
 
     /// Build Wallet by loading from persistence.
-    //
-    // Note that the descriptor secret keys are not persisted to the db.
+    ///
+    /// Note that the descriptor secret keys are not persisted to the db.
     #[uniffi::constructor(default(lookahead = 25))]
     pub fn load(
         descriptor: Arc<Descriptor>,
@@ -88,9 +158,7 @@ impl Wallet {
             .lookahead(lookahead)
             .extract_keys()
             .load_wallet(deref)
-            .map_err(|e| LoadWithPersistError::Persist {
-                error_message: e.to_string(),
-            })?
+            .map_err(LoadWithPersistError::from)?
             .ok_or(LoadWithPersistError::CouldNotLoad)?;
 
         Ok(Wallet {

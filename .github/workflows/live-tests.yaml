@@ -1,14 +1,18 @@
 name: Run All Live Tests
+
+# Runs live tests that connect to the Signet network.
+# Scheduled weekly and can be triggered manually.
+
 on: 
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0' # Once per week
+  # schedule:
+  #   - cron: '0 0 * * 0' # Once per week
 
 permissions: {}
 
 jobs:
   swift-tests:
-    name: "Build and test iOS library on macOS"
+    name: "Test iOS library"
     runs-on: macos-14
     steps:
       - name: "Checkout"
