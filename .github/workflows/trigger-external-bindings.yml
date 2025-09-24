@@ -20,13 +20,14 @@ jobs:
     name: "Trigger all remote test workflows"
     runs-on: ubuntu-24.04
     steps:    
-      # Trigger trigger-bdk-jvm-test workflow in bdk-jvm repository
-      - name: "Trigger tests in bdk-jvm repository"
+      # Trigger trigger-bdk-python-test workflow in bdk-python repository
+      - name: Trigger tests in bdk-python repository
+        if: ${{ github.ref_name == 'master' || github.ref_name == 'ci/python-workflow'}}
         env:
           BDK_PYTHON_ACCESS_TOKEN: ${{ secrets.BDK_PYTHON_ACCESS_TOKEN }}
         run: |
           curl --silent --show-error \
-            --output /tmp/resp_python.txt \
+            --output /tmp/resp_bdkpython.txt \
             --write-out "HTTP Status: %{http_code}\n" \
             --request POST \
             --header "Accept: application/vnd.github+json" \
@@ -35,8 +36,8 @@ jobs:
             --data '{"event_type":"trigger-bdk-python-test"}' \
             https://api.github.com/repos/mg-twentyone/bdk-python/dispatches
           echo "Response body:"
-          if [ -s /tmp/resp_python.txt ]; then
-            jq . /tmp/resp_python.txt || cat /tmp/resp_python.txt
+          if [ -s /tmp/resp_bdkpython.txt ]; then
+            jq . /tmp/resp_bdkpython.txt || cat /tmp/resp_bdkpython.txt
           else
             echo "(empty)"
           fi
